@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, PhotoImage
 from PIL import ImageTk, Image, ImageSequence
+import glob
 import os
 
 from graph_utils import load_dimacs_graph
@@ -8,23 +9,35 @@ from ga import GeneticAlgorithm
 from visualization import save_coloring_image
 from generate_gif import generate_gif
 
+
 class GraphColoringApp:
     def __init__(self, root):
         self.root = root
 
+        # Initialize paths and state
         self.graph_file = None
         self.result_image = None
         self.animation_job = None
 
+        # Create left panel for controls and display
         top_panel = tk.Frame(root, bg="#f0f0f0")
         top_panel.pack(side="left", fill="both", expand=True, padx=10)
 
-        self.title_label = tk.Label(top_panel, text="Graph Coloring using Genetic Algorithm", font=("Arial", 18, "bold"), bg="#f0f0f0", fg="#333")
+        # App title
+        self.title_label = tk.Label(
+            top_panel,
+            text="Graph Coloring using Genetic Algorithm",
+            font=("Arial", 18, "bold"),
+            bg="#f0f0f0",
+            fg="#333",
+        )
         self.title_label.pack(pady=10)
 
+        # Parameter input section
         param_frame = tk.Frame(top_panel, bg="#f0f0f0")
         param_frame.pack(pady=(0, 10))
 
+        # Default parameter values
         self.mutation_rate_var = tk.StringVar(value="0.1")
         self.max_gen_var = tk.StringVar(value="1000")
         self.tournament_k_var = tk.StringVar(value="5")
@@ -32,73 +45,171 @@ class GraphColoringApp:
         self.crossover_type_var = tk.StringVar(value="Single Point")
         self.mutation_mode_var = tk.StringVar(value="Adaptive")
 
-        tk.Label(param_frame, text="Mutation Rate:", bg="#f0f0f0").grid(row=0, column=0, sticky="e")
-        tk.Entry(param_frame, textvariable=self.mutation_rate_var, width=10).grid(row=0, column=1)
+        # Create parameter input widgets
+        tk.Label(param_frame, text="Mutation Rate:", bg="#f0f0f0").grid(
+            row=0, column=0, sticky="e"
+        )
+        tk.Entry(param_frame, textvariable=self.mutation_rate_var, width=10).grid(
+            row=0, column=1
+        )
 
-        tk.Label(param_frame, text="Max Generations:", bg="#f0f0f0").grid(row=0, column=2, sticky="e")
-        tk.Entry(param_frame, textvariable=self.max_gen_var, width=10).grid(row=0, column=3)
+        tk.Label(param_frame, text="Max Generations:", bg="#f0f0f0").grid(
+            row=0, column=2, sticky="e"
+        )
+        tk.Entry(param_frame, textvariable=self.max_gen_var, width=10).grid(
+            row=0, column=3
+        )
 
-        tk.Label(param_frame, text="Tournament Size:", bg="#f0f0f0").grid(row=0, column=4, sticky="e")
-        tk.Entry(param_frame, textvariable=self.tournament_k_var, width=10).grid(row=0, column=5)
+        tk.Label(param_frame, text="Tournament Size:", bg="#f0f0f0").grid(
+            row=0, column=4, sticky="e"
+        )
+        tk.Entry(param_frame, textvariable=self.tournament_k_var, width=10).grid(
+            row=0, column=5
+        )
 
-        tk.Label(param_frame, text="Selection:", bg="#f0f0f0").grid(row=1, column=0, sticky="e")
-        tk.OptionMenu(param_frame, self.selection_method_var, "Tournament", "Roulette").grid(row=1, column=1)
+        tk.Label(param_frame, text="Selection:", bg="#f0f0f0").grid(
+            row=1, column=0, sticky="e"
+        )
+        tk.OptionMenu(
+            param_frame, self.selection_method_var, "Tournament", "Roulette"
+        ).grid(row=1, column=1)
 
-        tk.Label(param_frame, text="Crossover:", bg="#f0f0f0").grid(row=1, column=2, sticky="e")
-        tk.OptionMenu(param_frame, self.crossover_type_var, "Single Point", "Uniform").grid(row=1, column=3)
+        tk.Label(param_frame, text="Crossover:", bg="#f0f0f0").grid(
+            row=1, column=2, sticky="e"
+        )
+        tk.OptionMenu(
+            param_frame, self.crossover_type_var, "Single Point", "Uniform"
+        ).grid(row=1, column=3)
 
-        tk.Label(param_frame, text="Mutation Mode:", bg="#f0f0f0").grid(row=1, column=4, sticky="e")
-        tk.OptionMenu(param_frame, self.mutation_mode_var, "Adaptive", "Fixed").grid(row=1, column=5)
+        tk.Label(param_frame, text="Mutation Mode:", bg="#f0f0f0").grid(
+            row=1, column=4, sticky="e"
+        )
+        tk.OptionMenu(param_frame, self.mutation_mode_var, "Adaptive", "Fixed").grid(
+            row=1, column=5
+        )
 
+        # Area for displaying output images
         self.image_label = tk.Label(top_panel, bg="#f0f0f0")
         self.image_label.pack(pady=(10, 10))
 
-        self.file_label = tk.Label(top_panel, text="No file selected", font=("Arial", 12), bg="#f0f0f0", fg="#666")
+        # File selection label
+        self.file_label = tk.Label(
+            top_panel,
+            text="No file selected",
+            font=("Arial", 12),
+            bg="#f0f0f0",
+            fg="#666",
+        )
         self.file_label.pack(pady=5)
 
-        self.browse_btn = tk.Button(top_panel, text="📂 Browse Graph File", font=("Arial", 12), width=30, command=self.browse_file)
+        # Action buttons
+        self.browse_btn = tk.Button(
+            top_panel,
+            text="Browse Graph File",
+            font=("Arial", 12),
+            width=30,
+            command=self.browse_file,
+        )
         self.browse_btn.pack(pady=5)
 
-        self.run_btn = tk.Button(top_panel, text="🚀 Run Genetic Algorithm", font=("Arial", 12), width=30, command=self.run_ga, state=tk.DISABLED)
+        self.run_btn = tk.Button(
+            top_panel,
+            text="Run Genetic Algorithm",
+            font=("Arial", 12),
+            width=30,
+            command=self.run_ga,
+            state=tk.DISABLED,
+        )
         self.run_btn.pack(pady=5)
 
-        self.generate_gif_btn = tk.Button(top_panel, text="🎞 Generate GIF Only", font=("Arial", 11), width=30, command=self.generate_gif_only, state=tk.DISABLED)
+        self.generate_gif_btn = tk.Button(
+            top_panel,
+            text="Generate GIF Only",
+            font=("Arial", 11),
+            width=30,
+            command=self.generate_gif_only,
+            state=tk.DISABLED,
+        )
         self.generate_gif_btn.pack(pady=5)
 
-        self.sim_annealing_btn = tk.Button(top_panel, text="❄️ Run Simulated Annealing", font=("Arial", 11), width=30, command=self.run_simulated_annealing, state=tk.DISABLED)
+        self.sim_annealing_btn = tk.Button(
+            top_panel,
+            text="Run Simulated Annealing",
+            font=("Arial", 11),
+            width=30,
+            command=self.run_simulated_annealing,
+            state=tk.DISABLED,
+        )
         self.sim_annealing_btn.pack(pady=5)
 
-        self.show_png_btn = tk.Button(top_panel, text="🖼 Show PNG Image", font=("Arial", 11), width=25, command=self.display_png, state=tk.DISABLED)
+        self.show_png_btn = tk.Button(
+            top_panel,
+            text="Show PNG Image",
+            font=("Arial", 11),
+            width=25,
+            command=self.display_png,
+            state=tk.DISABLED,
+        )
         self.show_png_btn.pack(pady=2)
 
-        self.show_gif_btn = tk.Button(top_panel, text="🌀 Show Animation (GIF)", font=("Arial", 11), width=25, command=self.display_gif, state=tk.DISABLED)
+        self.show_gif_btn = tk.Button(
+            top_panel,
+            text="Show Animation (GIF)",
+            font=("Arial", 11),
+            width=25,
+            command=self.display_gif,
+            state=tk.DISABLED,
+        )
         self.show_gif_btn.pack(pady=2)
 
-        self.reset_btn = tk.Button(top_panel, text="🔄 Reset", font=("Arial", 11), width=25, command=self.reset_interface)
+        self.reset_btn = tk.Button(
+            top_panel,
+            text="Reset",
+            font=("Arial", 11),
+            width=25,
+            command=self.reset_interface,
+        )
         self.reset_btn.pack(pady=10)
 
-        self.compare_btn = tk.Button(top_panel, text="📊 Compare GA vs SA", font=("Arial", 11), width=25, command=self.compare_results, state=tk.DISABLED)
+        self.compare_btn = tk.Button(
+            top_panel,
+            text="Compare GA vs SA",
+            font=("Arial", 11),
+            width=25,
+            command=self.compare_results,
+            state=tk.DISABLED,
+        )
         self.compare_btn.pack(pady=5)
 
+        # Create right panel for logging
         right_panel = tk.Frame(root, bg="#f0f0f0")
         right_panel.pack(side="right", fill="y", padx=10, pady=10)
 
-        self.status_box = tk.Text(right_panel, height=45, width=50, state=tk.DISABLED, bg="#ffffff", fg="#333", font=("Consolas", 10), wrap=tk.WORD)
+        self.status_box = tk.Text(
+            right_panel,
+            height=45,
+            width=50,
+            state=tk.DISABLED,
+            bg="#ffffff",
+            fg="#333",
+            font=("Consolas", 10),
+            wrap=tk.WORD,
+        )
         self.status_box.pack(side="top", fill="both", expand=True)
 
     def browse_file(self):
-        import shutil
-        import glob
 
+        # Open file dialog to select a graph file
         file_path = filedialog.askopenfilename(filetypes=[("Graph Files", "gc_*")])
         if file_path:
-            # Clear frames folder
+            # Clear frames directory before starting new run
             if os.path.exists("frames"):
                 for f in glob.glob("frames/*.png"):
                     os.remove(f)
             else:
                 os.makedirs("frames")
 
+            # Update UI with selected file
             self.graph_file = file_path
             self.file_label.config(text=f"Selected: {os.path.basename(file_path)}")
             self.run_btn.config(state=tk.NORMAL)
@@ -106,7 +217,7 @@ class GraphColoringApp:
             self.show_png_btn.config(state=tk.DISABLED)
             self.show_gif_btn.config(state=tk.DISABLED)
             self.sim_annealing_btn.config(state=tk.DISABLED)
-            self.image_label.config(image='')
+            self.image_label.config(image="")
             self.image_label.image = None
             self.result_image_path = None
             self.gif_path = None
@@ -120,13 +231,16 @@ class GraphColoringApp:
             messagebox.showwarning("No File", "Please select a graph file first.")
             return
 
+        # Clear the status box
         self.status_box.config(state=tk.NORMAL)
         self.status_box.delete("1.0", tk.END)
-        self.log_status("🚧 Running Genetic Algorithm... Please wait.\n")
+        self.log_status("Running Genetic Algorithm... Please wait.\n")
 
         try:
+            # Load graph data
             num_nodes, edges = load_dimacs_graph(self.graph_file)
 
+            # Initialize GA with user-defined parameters
             ga = GeneticAlgorithm(
                 num_nodes=num_nodes,
                 edges=edges,
@@ -137,17 +251,18 @@ class GraphColoringApp:
                 selection_type=self.selection_method_var.get(),
                 crossover_type=self.crossover_type_var.get(),
                 mutation_mode=self.mutation_mode_var.get(),
-                log_fn=self.log_status
+                log_fn=self.log_status,
             )
 
+            # Run GA and save results
             coloring = ga.run()
             self.ga_coloring = coloring
             self.last_solution = coloring
             self.sim_annealing_btn.config(state=tk.NORMAL)
             self.compare_btn.config(state=tk.DISABLED)
             self.generate_gif_btn.config(state=tk.NORMAL)
-            self.compare_btn.config(state=tk.DISABLED)
 
+            # Save output image
             output_img = f"output_{os.path.basename(self.graph_file)}.png"
             save_coloring_image(num_nodes, edges, coloring, output_img)
             self.result_image_path = output_img
@@ -157,8 +272,8 @@ class GraphColoringApp:
             self.display_png()
 
             used_colors = len(set(coloring))
-            self.log_status(f"\n🎉 Done! Used colors: {used_colors}")
-            self.log_status(f"🖼 Output image saved as: {output_img}")
+            self.log_status(f"\nDone! Used colors: {used_colors}")
+            self.log_status(f"Output image saved as: {output_img}")
             self.show_result_image(output_img)
 
         except Exception as e:
@@ -167,6 +282,7 @@ class GraphColoringApp:
 
     def generate_gif_only(self):
         try:
+            # Generate GIF from saved coloring frames
             generate_gif("frames", "animation.gif", duration=300)
             self.gif_path = "animation.gif"
             self.log_status("GIF generated from frames.")
@@ -179,41 +295,46 @@ class GraphColoringApp:
             return
 
         try:
+            # Load graph again
             num_nodes, edges = load_dimacs_graph(self.graph_file)
 
+            # Run Simulated Annealing on last GA result
             ga_temp = GeneticAlgorithm(
                 num_nodes=num_nodes,
                 edges=edges,
                 mutation_mode=self.mutation_mode_var.get(),
-                log_fn=self.log_status
+                log_fn=self.log_status,
             )
             improved = ga_temp.simulated_annealing(self.last_solution)
-            self.last_solution = improved  # Update the stored solution
+            self.last_solution = improved
             self.sa_coloring = improved
             self.compare_btn.config(state=tk.NORMAL)
 
-            # Save image and frame
-            save_coloring_image(num_nodes, edges, improved, "simulated_annealing_result.png")
+            # Save improved result
+            save_coloring_image(
+                num_nodes, edges, improved, "simulated_annealing_result.png"
+            )
             from visualization import save_coloring_frame
+
             save_coloring_frame(num_nodes, edges, improved, 9999, folder="frames")
 
-            self.log_status("Simulated Annealing complete. Saved as simulated_annealing_result.png")
-
-        except Exception as e:
-            self.log_status(f" Simulated Annealing Error: {e}")
-            messagebox.showerror("Error", str(e))
+            self.log_status(
+                "Simulated Annealing complete. Saved as simulated_annealing_result.png"
+            )
 
         except Exception as e:
             self.log_status(f" Simulated Annealing Error: {e}")
             messagebox.showerror("Error", str(e))
 
     def log_status(self, msg):
+        # Append message to status box
         self.status_box.config(state=tk.NORMAL)
         self.status_box.insert(tk.END, msg + "\n")
         self.status_box.see(tk.END)
         self.status_box.config(state=tk.DISABLED)
 
     def show_result_image(self, image_path):
+        # Display a single static result image
         if not os.path.exists(image_path):
             return
 
@@ -224,6 +345,7 @@ class GraphColoringApp:
         self.image_label.image = photo
 
     def display_png(self):
+        # Show PNG result
         if not self.result_image_path or not os.path.exists(self.result_image_path):
             self.log_status(" PNG image not found.")
             return
@@ -239,6 +361,7 @@ class GraphColoringApp:
         self.log_status("Showing PNG output.")
 
     def display_gif(self):
+        # Show generated GIF animation
         if not self.gif_path or not os.path.exists(self.gif_path):
             self.log_status("GIF not found.")
             return
@@ -247,10 +370,12 @@ class GraphColoringApp:
         self.log_status(" Playing GIF animation.")
 
     def compare_results(self):
+        # Compare results of GA vs SA
         if self.animation_job:
             self.root.after_cancel(self.animation_job)
             self.animation_job = None
-        from PIL import ImageOps, ImageStat
+        from PIL import ImageOps
+
         ga_image = f"output_{os.path.basename(self.graph_file)}.png"
         sa_image = "simulated_annealing_result.png"
         if not os.path.exists(ga_image) or not os.path.exists(sa_image):
@@ -258,47 +383,49 @@ class GraphColoringApp:
             return
 
         try:
+            # Merge both images side by side
             img1 = Image.open(ga_image).resize((300, 300))
             img2 = Image.open("simulated_annealing_result.png").resize((300, 300))
             combined = Image.new("RGB", (600, 300))
-            combined.paste(ImageOps.expand(img1, border=2, fill='black'), (0, 0))
-            combined.paste(ImageOps.expand(img2, border=2, fill='black'), (300, 0))
+            combined.paste(ImageOps.expand(img1, border=2, fill="black"), (0, 0))
+            combined.paste(ImageOps.expand(img2, border=2, fill="black"), (300, 0))
             photo = ImageTk.PhotoImage(combined)
             self.image_label.config(image=photo)
             self.image_label.image = photo
-                        # Count distinct colors
-            from graph_utils import load_dimacs_graph
-            num_nodes, _ = load_dimacs_graph(self.graph_file)
-            ga_colors = set()
-            sa_colors = set()
 
-            # Compare based on actual coloring results
-            used_ga_colors = len(set(self.ga_coloring)) if hasattr(self, 'ga_coloring') else 0
-            used_sa_colors = len(set(self.sa_coloring)) if hasattr(self, 'sa_coloring') else 0
-            ga_colors = used_ga_colors
-            sa_colors = used_sa_colors
+            # Count and compare number of used colors
+            from graph_utils import load_dimacs_graph
+
+            num_nodes, _ = load_dimacs_graph(self.graph_file)
+
+            used_ga_colors = (
+                len(set(self.ga_coloring)) if hasattr(self, "ga_coloring") else 0
+            )
+            used_sa_colors = (
+                len(set(self.sa_coloring)) if hasattr(self, "sa_coloring") else 0
+            )
 
             self.log_status("Displaying GA vs SA comparison.")
-            self.log_status(f"   GA colors used: {ga_colors}")
-            self.log_status(f"   SA colors used: {sa_colors}")
+            self.log_status(f"   GA colors used: {used_ga_colors}")
+            self.log_status(f"   SA colors used: {used_sa_colors}")
 
-            if ga_colors < sa_colors:
+            if used_ga_colors < used_sa_colors:
                 self.log_status("GA performed better in terms of color usage.")
-            elif ga_colors > sa_colors:
+            elif used_ga_colors > used_sa_colors:
                 self.log_status("SA performed better in terms of color usage.")
             else:
                 self.log_status("GA and SA used the same number of colors.")
         except Exception as e:
             self.log_status(f"Comparison Error: {e}")
 
-
     def reset_interface(self):
+        # Reset all UI elements and states
         self.graph_file = None
         self.result_image_path = None
         self.gif_path = None
         self.last_solution = None
         self.file_label.config(text="No file selected")
-        self.image_label.config(image='')
+        self.image_label.config(image="")
         self.image_label.image = None
         self.status_box.config(state=tk.NORMAL)
         self.status_box.delete("1.0", tk.END)
@@ -314,6 +441,7 @@ class GraphColoringApp:
         self.log_status("Interface has been reset.")
 
     def play_animation(self, gif_path):
+        # Display animated GIF frame by frame
         if not os.path.exists(gif_path):
             self.log_status("animation.gif not found.")
             return
@@ -322,7 +450,10 @@ class GraphColoringApp:
             self.root.after_cancel(self.animation_job)
 
         gif = Image.open(gif_path)
-        frames = [ImageTk.PhotoImage(frame.copy().resize((600, 300))) for frame in ImageSequence.Iterator(gif)]
+        frames = [
+            ImageTk.PhotoImage(frame.copy().resize((600, 300)))
+            for frame in ImageSequence.Iterator(gif)
+        ]
 
         def update(idx=0):
             frame = frames[idx]

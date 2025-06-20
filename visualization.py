@@ -7,9 +7,11 @@ def save_coloring_image(num_nodes, edges, coloring, output_path, pos=None):
     G.add_edges_from(edges)
     color_map = [coloring[node] for node in G.nodes]
 
+    # Use layout or generate one if not provided
     if pos is None:
         pos = nx.spring_layout(G, seed=42)
 
+    # Plot and save the graph
     plt.figure(figsize=(10, 8))
     nx.draw(
         G,
@@ -23,7 +25,7 @@ def save_coloring_image(num_nodes, edges, coloring, output_path, pos=None):
     plt.savefig(output_path)
     plt.close()
 
-    return pos  # Return pos if used as initial layout
+    return pos  # Return layout to be reused for animation frames
 
 
 def save_coloring_frame(num_nodes, edges, coloring, gen_number, folder, pos):
@@ -36,6 +38,7 @@ def save_coloring_frame(num_nodes, edges, coloring, gen_number, folder, pos):
     G.add_edges_from(edges)
     color_map = [coloring[node] for node in G.nodes]
 
+    # Draw the current generation
     plt.figure(figsize=(10, 8))
     nx.draw(
         G,
