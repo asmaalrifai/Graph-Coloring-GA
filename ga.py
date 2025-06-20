@@ -1,4 +1,5 @@
 import random
+import networkx as nx
 from visualization import save_coloring_frame
 from generate_gif import generate_gif
 
@@ -8,12 +9,12 @@ class GeneticAlgorithm:
         self,
         num_nodes,
         edges,
-        pop_size=100,
-        mutation_rate=0.1,
-        max_gen=1000,
-        tournament_k=5,
+        pop_size=300,
+        mutation_rate=0.03,
+        max_gen=1500,
+        tournament_k=9,
         selection_type="Tournament",
-        crossover_type="Single Point",
+        crossover_type="Color Aware",
         mutation_mode="Adaptive",
         log_fn=print,
     ):
@@ -22,7 +23,7 @@ class GeneticAlgorithm:
         self.pop_size = pop_size
         self.mutation_rate = mutation_rate
         self.max_gen = max_gen
-        self.no_improve_count = 0  # For adaptive mutation -> advanced feature
+        self.no_improve_count = 0
         self.best_fitness = float("inf")
         self.tournament_k = tournament_k
         self.selection_type = selection_type
@@ -66,9 +67,13 @@ class GeneticAlgorithm:
     def mutate(self, coloring):
         for i in range(self.num_nodes):
             if random.random() < self.mutation_rate:
-                colors_used = list(set(coloring))
-                coloring[i] = random.choice(colors_used)
-
+                neighbor_colors = {coloring[v] for u, v in self.edges if u == i} | {
+                    coloring[u] for u, v in self.edges if v == i
+                }
+                new_color = random.randint(0, self.num_nodes - 1)
+                while new_color in neighbor_colors:
+                    new_color = random.randint(0, self.num_nodes - 1)
+                coloring[i] = new_color
         return coloring
 
     def local_search(self, coloring):
@@ -93,14 +98,26 @@ class GeneticAlgorithm:
 
     def run(self):
         population = self.initial_population()
+        best_overall = None
+        best_color_count = float("inf")
+
+        G = nx.Graph()
+        G.add_nodes_from(range(self.num_nodes))
+        G.add_edges_from(self.edges)
+        pos = nx.spring_layout(G, seed=42)
 
         for gen in range(self.max_gen):
             population = sorted(population, key=self.fitness)
             best = population[0]
             best_fit = self.fitness(best)
             used_colors = len(set(best))
+
+            if used_colors < best_color_count:
+                best_overall = best[:]
+                best_color_count = used_colors
+
             save_coloring_frame(
-                self.num_nodes, self.edges, best, gen + 1, folder="frames"
+                self.num_nodes, self.edges, best, gen + 1, folder="frames", pos=pos
             )
             self.log(
                 f"Gen {gen+1}: Best fitness = {best_fit}, used colors = {used_colors}"
@@ -112,14 +129,18 @@ class GeneticAlgorithm:
                 self.log(f"✅ Perfect solution found at generation {gen+1}")
                 return best
 
+            if gen > 50 and used_colors <= 160 and self.no_improve_count > 20:
+                self.log("🎯 Early stop: Good enough solution")
+                break
+
             elite_count = 10
             diverse_count = 5
-
             elites = population[:elite_count]
             diverse = random.sample(
                 population[elite_count:],
                 min(diverse_count, len(population) - elite_count),
             )
+
             new_population = elites + diverse
             while len(new_population) < self.pop_size:
                 p1, p2 = self.selection(population)
@@ -130,7 +151,7 @@ class GeneticAlgorithm:
 
             population = new_population
 
-        return population[0]
+        return best_overall
 
     def generate_gif_from_frames(self, duration=300):
         try:
@@ -144,22 +165,17 @@ class GeneticAlgorithm:
         for i in range(self.num_nodes):
             c1 = p1[i]
             c2 = p2[i]
-
             conflicts_c1 = sum(
                 1 for u, v in self.edges if (u == i or v == i) and (p1[u] == p1[v])
             )
             conflicts_c2 = sum(
                 1 for u, v in self.edges if (u == i or v == i) and (p2[u] == p2[v])
             )
-
-            if conflicts_c1 < conflicts_c2:
-                child.append(c1)
-            else:
-                child.append(c2)
+            child.append(c1 if conflicts_c1 < conflicts_c2 else c2)
         return child
 
     def simulated_annealing(
-        self, coloring, initial_temp=100.0, cooling_rate=0.95, max_iter=1000
+        self, coloring, initial_temp=500.0, cooling_rate=0.90, max_iter=2000
     ):
         def cost(c):
             return self.fitness(c) * 1000 + len(set(c))

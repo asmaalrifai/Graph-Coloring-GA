@@ -113,7 +113,7 @@ class GraphColoringApp:
             if self.animation_job:
                 self.root.after_cancel(self.animation_job)
                 self.animation_job = None
-            self.log_status(f"✅ File selected: {file_path}")
+            self.log_status(f" File selected: {file_path}")
 
     def run_ga(self):
         if not self.graph_file:
@@ -162,16 +162,16 @@ class GraphColoringApp:
             self.show_result_image(output_img)
 
         except Exception as e:
-            self.log_status(f"❌ Error: {e}")
+            self.log_status(f" Error: {e}")
             messagebox.showerror("Error", str(e))
 
     def generate_gif_only(self):
         try:
             generate_gif("frames", "animation.gif", duration=300)
             self.gif_path = "animation.gif"
-            self.log_status("🌀 GIF generated from frames.")
+            self.log_status("GIF generated from frames.")
         except Exception as e:
-            self.log_status(f"❌ GIF generation failed: {e}")
+            self.log_status(f"GIF generation failed: {e}")
 
     def run_simulated_annealing(self):
         if not hasattr(self, "last_solution"):
@@ -197,14 +197,14 @@ class GraphColoringApp:
             from visualization import save_coloring_frame
             save_coloring_frame(num_nodes, edges, improved, 9999, folder="frames")
 
-            self.log_status("❄️ Simulated Annealing complete. Saved as simulated_annealing_result.png")
+            self.log_status("Simulated Annealing complete. Saved as simulated_annealing_result.png")
 
         except Exception as e:
-            self.log_status(f"❌ Simulated Annealing Error: {e}")
+            self.log_status(f" Simulated Annealing Error: {e}")
             messagebox.showerror("Error", str(e))
 
         except Exception as e:
-            self.log_status(f"❌ Simulated Annealing Error: {e}")
+            self.log_status(f" Simulated Annealing Error: {e}")
             messagebox.showerror("Error", str(e))
 
     def log_status(self, msg):
@@ -225,7 +225,7 @@ class GraphColoringApp:
 
     def display_png(self):
         if not self.result_image_path or not os.path.exists(self.result_image_path):
-            self.log_status("❌ PNG image not found.")
+            self.log_status(" PNG image not found.")
             return
 
         if self.animation_job:
@@ -236,15 +236,15 @@ class GraphColoringApp:
         photo = ImageTk.PhotoImage(image)
         self.image_label.config(image=photo)
         self.image_label.image = photo
-        self.log_status("✅ Showing PNG output.")
+        self.log_status("Showing PNG output.")
 
     def display_gif(self):
         if not self.gif_path or not os.path.exists(self.gif_path):
-            self.log_status("❌ GIF not found.")
+            self.log_status("GIF not found.")
             return
 
         self.play_animation(self.gif_path)
-        self.log_status("✅ Playing GIF animation.")
+        self.log_status(" Playing GIF animation.")
 
     def compare_results(self):
         if self.animation_job:
@@ -254,7 +254,7 @@ class GraphColoringApp:
         ga_image = f"output_{os.path.basename(self.graph_file)}.png"
         sa_image = "simulated_annealing_result.png"
         if not os.path.exists(ga_image) or not os.path.exists(sa_image):
-            self.log_status("⚠️ Cannot compare: one or both images not found.")
+            self.log_status(" Cannot compare: one or both images not found.")
             return
 
         try:
@@ -278,18 +278,18 @@ class GraphColoringApp:
             ga_colors = used_ga_colors
             sa_colors = used_sa_colors
 
-            self.log_status("📊 Displaying GA vs SA comparison.")
+            self.log_status("Displaying GA vs SA comparison.")
             self.log_status(f"   GA colors used: {ga_colors}")
             self.log_status(f"   SA colors used: {sa_colors}")
 
             if ga_colors < sa_colors:
-                self.log_status("✅ GA performed better in terms of color usage.")
+                self.log_status("GA performed better in terms of color usage.")
             elif ga_colors > sa_colors:
-                self.log_status("✅ SA performed better in terms of color usage.")
+                self.log_status("SA performed better in terms of color usage.")
             else:
-                self.log_status("⚖️ GA and SA used the same number of colors.")
+                self.log_status("GA and SA used the same number of colors.")
         except Exception as e:
-            self.log_status(f"❌ Comparison Error: {e}")
+            self.log_status(f"Comparison Error: {e}")
 
 
     def reset_interface(self):
@@ -311,11 +311,11 @@ class GraphColoringApp:
         if self.animation_job:
             self.root.after_cancel(self.animation_job)
             self.animation_job = None
-        self.log_status("🔄 Interface has been reset.")
+        self.log_status("Interface has been reset.")
 
     def play_animation(self, gif_path):
         if not os.path.exists(gif_path):
-            self.log_status("⚠️ animation.gif not found.")
+            self.log_status("animation.gif not found.")
             return
 
         if self.animation_job:
@@ -335,7 +335,7 @@ class GraphColoringApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("🎨 Graph Coloring Solver")
+    root.title("Graph Coloring Solver")
     canvas = tk.Canvas(root)
     scrollbar = tk.Scrollbar(root, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=scrollbar.set)
